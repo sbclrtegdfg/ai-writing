@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d0d1a">
+<title>AI 写作</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*,::before,::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d1a;--bg2:#16162a;--bg3:#1e1e3a;--text:#e8e8f0;
+  --muted:#9090a8;--accent:#ff5e6b;--border:#282850;--r:10px;
+  --safe:env(safe-area-inset-bottom,12px);
+  --nav-h:56px;--top-h:48px;--bottom-h:60px;
+}
+body{
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;
+  -webkit-tap-highlight-color:transparent;user-select:none;overscroll-behavior:none;
+}
+.screen{display:none;position:fixed;top:0;left:0;right:0;bottom:var(--bottom-h);
+  overflow-y:auto;padding-top:var(--top-h);background:var(--bg);z-index:1}
+.screen.active{display:flex;flex-direction:column}
+.topbar{
+  position:fixed;top:0;left:0;right:0;z-index:20;height:var(--top-h);
+  display:flex;align-items:center;padding:0 12px;background:var(--bg);border-bottom:1px solid var(--border);
+}
+.topbar h1{font-size:1rem;flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar .tb-btn{color:var(--accent);font-size:.85rem;text-decoration:none;padding:6px 10px;min-width:40px}
+.topbar .tb-btn.back{font-size:1.2rem;padding:6px 8px}
+
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:20;height:calc(var(--bottom-h) + var(--safe));
+  display:flex;padding-bottom:var(--safe);background:var(--bg2);border-top:1px solid var(--border);
+}
+.nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:var(--muted);font-size:.65rem;text-decoration:none;gap:2px;transition:color .15s}
+.nav-tab.active{color:var(--accent)}
+.nav-tab .nav-icon{font-size:1.3rem}
+
+.pad{padding:14px 16px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px}
+.list-item{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);
+  color:var(--text);text-decoration:none;cursor:pointer}
+.list-item:active{background:var(--bg3)}
+.list-item .icon{font-size:1.2rem;margin-right:10px;width:28px;text-align:center}
+.tag{display:inline-block;background:var(--bg3);color:var(--muted);padding:2px 6px;border-radius:4px;font-size:.65rem}
+.meta{font-size:.75rem;color:var(--muted);line-height:1.5}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.flex{flex:1}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;
+  border:none;border-radius:var(--r);font:inherit;font-size:.85rem;cursor:pointer;
+  color:#fff;text-decoration:none;transition:opacity .12s;white-space:nowrap}
+.btn:active{opacity:.65}
+.btn-a{background:var(--accent)}
+.btn-b{background:var(--bg3)}
+.btn-s{background:var(--bg3);padding:6px 12px;font-size:.75rem}
+.btn-d{background:#b33}
+.btn-w{background:#2a2a5a;display:block;width:100%;margin-bottom:5px}
+.btn-w:active{background:#3a3a7a}
+.btn-g{background:#2a5a3a}
+
+label{display:block;margin-bottom:10px;font-size:.8rem;color:var(--muted)}
+input,textarea,select{display:block;width:100%;margin-top:4px;padding:10px 12px;
+  background:var(--bg3);color:var(--text);border:1px solid var(--border);
+  border-radius:var(--r);font:inherit;font-size:.9rem}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+textarea{resize:vertical;line-height:1.7}
+
+.status-bar{display:flex;gap:8px;font-size:.7rem;padding:8px 16px;flex-wrap:wrap}
+.status-ok{color:#4db88d}.status-warn{color:#e0a040}
+
+.editor-area{display:flex;flex-direction:column;flex:1;overflow:hidden}
+.editor-area textarea{flex:1;width:100%;padding:16px;background:var(--bg);color:var(--text);
+  border:none;font:15px/1.9 "SF Mono","Menlo","Consolas",monospace;resize:none;overflow-y:auto}
+.editor-area textarea:focus{outline:none}
+.editor-bottom{padding:8px 12px calc(8px + var(--safe));background:var(--bg2);border-top:1px solid var(--border)}
+.ai-resp{min-height:50px;max-height:180px;overflow-y:auto;padding:10px;margin:6px 0;
+  background:var(--bg);border-radius:var(--r);font-size:.8rem;line-height:1.6;white-space:pre-wrap}
+
+.chat-container{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px}
+.chat-msg{margin-bottom:12px}
+.chat-role{font-size:.65rem;color:var(--muted);margin-bottom:2px}
+.chat-msg.user .chat-role{color:var(--accent)}
+.chat-text{font-size:.85rem;line-height:1.65;white-space:pre-wrap}
+.chat-bar{display:flex;gap:6px;padding:8px 12px calc(8px + var(--safe));background:var(--bg2);border-top:1px solid var(--border)}
+.chat-bar textarea{flex:1;margin:0;resize:none;font-size:.85rem;padding:8px 10px}
+
+.overlay{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
+.overlay.active{display:flex}
+.popup{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px;width:100%;max-width:380px;max-height:85vh;overflow-y:auto}
+.popup h3{font-size:1rem;margin-bottom:12px}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div class="bottom-nav" id="bottom-nav">
+  <div class="nav-tab active" data-tab="home" onclick="switchTab('home')"><span class="nav-icon">&#x1F4DA;</span>小说</div>
+  <div class="nav-tab" data-tab="write" onclick="switchTab('write')"><span class="nav-icon">&#x270D;</span>写作</div>
+  <div class="nav-tab" data-tab="discuss" onclick="switchTab('discuss')"><span class="nav-icon">&#x1F4AC;</span>讨论</div>
+  <div class="nav-tab" data-tab="settings" onclick="switchTab('settings')"><span class="nav-icon">&#x2699;</span>设置</div>
+</div>
+
+<script>
+// ============== FS ENGINE ==============
+let fsMode='local',dirHandle=null;
+
+async function fsInit(){
+  try{
+    const db=await idbOpen('aiw','fh');
+    const stored=await idbGet(db,'fh','root');
+    if(stored){
+      try{const ok=await stored.handle.queryPermission({mode:'readwrite'});if(ok==='granted'){dirHandle=stored.handle;fsMode='fs';return true}}catch{}
+      try{const ok=await stored.handle.requestPermission({mode:'readwrite'});if(ok==='granted'){dirHandle=stored.handle;fsMode='fs';return true}}catch{}
+    }
+  }catch{}
+  return false;
+}
+
+async function fsPickDir(){
+  try{dirHandle=await window.showDirectoryPicker({mode:'readwrite'});fsMode='fs';
+    const db=await idbOpen('aiw','fh');await idbPut(db,'fh',{handle:dirHandle},'root');return true}catch{return false}
+}
+
+async function fsRead(path){
+  const parts=path.split('/').filter(Boolean);let h=dirHandle;
+  for(let i=0;i<parts.length-1;i++)h=await h.getDirectoryHandle(parts[i],{create:false});
+  return await(await(await h.getFileHandle(parts[parts.length-1])).getFile()).text();
+}
+
+async function fsWrite(path,content){
+  const parts=path.split('/').filter(Boolean);let h=dirHandle;
+  for(let i=0;i<parts.length-1;i++)h=await h.getDirectoryHandle(parts[i],{create:true});
+  const w=await(await h.getFileHandle(parts[parts.length-1],{create:true})).createWritable();
+  await w.write(content);await w.close();
+}
+
+async function fsList(dir){
+  const parts=dir.split('/').filter(Boolean);let h=dirHandle;
+  for(const p of parts)try{h=await h.getDirectoryHandle(p,{create:false})}catch{return[]}
+  const items=[];
+  for await(const[n,handle]of h.entries())items.push({name:n,isDir:handle.kind==='directory'});
+  return items;
+}
+
+async function fsDelete(path){
+  const parts=path.split('/').filter(Boolean);let h=dirHandle;
+  for(let i=0;i<parts.length-1;i++)h=await h.getDirectoryHandle(parts[i]);
+  await h.removeEntry(parts[parts.length-1],{recursive:true});
+}
+
+function idbOpen(name,store){return new Promise((res,rej)=>{const r=indexedDB.open(name,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(store))r.result.createObjectStore(store)};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+function idbGet(db,store,key){return new Promise((res,rej)=>{const t=db.transaction(store,'readonly').objectStore(store).get(key);t.onsuccess=()=>res(t.result);t.onerror=()=>rej(t.error)})}
+function idbPut(db,store,val,key){return new Promise((res,rej)=>{const t=db.transaction(store,'readwrite').objectStore(store).put(val,key);t.onsuccess=()=>res(t.result);t.onerror=()=>rej(t.error)})}
+
+// ============== DATA LAYER ==============
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){localStorage.setItem(k,JSON.stringify(v))}};
+function settings(){return LS.get('aws_s',{api_key:'',api_base:'https://api.deepseek.com',model:'deepseek-v4-flash'})}
+function saveSettings(d){LS.set('aws_s',Object.assign(settings(),d))}
+
+async function novelsDB(){
+  if(fsMode!=='fs')return LS.get('aws_novels',[]);
+  const items=await fsList('');const ns=[];
+  for(const it of items){if(!it.isDir)continue;try{const r=await fsRead(it.name+'/project.yaml');const d=parseYAML(r);d.dirname=it.name;ns.push(d)}catch{}}
+  return ns;
+}
+async function saveNovelDB(n){
+  if(fsMode!=='fs'){const ns=LS.get('aws_novels',[]);const i=ns.findIndex(x=>x.dirname===n.dirname);i>=0?ns[i]=n:ns.push(n);LS.set('aws_novels',ns);return}
+  await fsWrite(n.dirname+'/project.yaml',toYAML(n));
+}
+async function deleteNovelDB(dn){
+  if(fsMode!=='fs'){LS.set('aws_novels',LS.get('aws_novels',[]).filter(x=>x.dirname!==dn));return}
+  await fsDelete(dn);
+}
+
+async function chaptersDB(dn){
+  if(fsMode!=='fs')return LS.get('aws_ch_'+dn,[]);
+  try{const items=await fsList(dn+'/chapters');return items.filter(x=>x.name.endsWith('.md')).map(x=>({filename:x.name,title:x.name.replace('.md',''),content:'',updatedAt:0}))}catch{return[]}
+}
+async function loadChapterDB(dn,fn){
+  if(fsMode!=='fs'){const chs=LS.get('aws_ch_'+dn,[]);const c=chs.find(x=>x.filename===fn);return c?c.content:''}
+  try{return await fsRead(dn+'/chapters/'+fn)}catch{return''}
+}
+async function saveChapterDB(dn,ch){
+  if(fsMode!=='fs'){let chs=LS.get('aws_ch_'+dn,[]);const i=chs.findIndex(x=>x.filename===ch.filename);i>=0?chs[i]=ch:chs.push(ch);LS.set('aws_ch_'+dn,chs);return}
+  await fsWrite(dn+'/chapters/'+ch.filename,ch.content||'');
+}
+
+async function charactersDB(dn){
+  if(fsMode!=='fs')return LS.get('aws_cr_'+dn,[]);
+  try{const items=await fsList(dn+'/characters');const crs=[];for(const it of items){if(!it.name.endsWith('.yaml'))continue;try{const r=await fsRead(dn+'/characters/'+it.name);const d=parseYAML(r);d._filename=it.name;crs.push(d)}catch{}}return crs}catch{return[]}
+}
+async function saveCharacterDB(dn,data,oldFn){
+  if(fsMode!=='fs'){let crs=LS.get('aws_cr_'+dn,[]);if(oldFn){const i=crs.findIndex(x=>x._filename===oldFn);if(i>=0)crs[i]=data}else crs.push(data);LS.set('aws_cr_'+dn,crs);return}
+  if(oldFn&&oldFn!==data._filename)try{await fsDelete(dn+'/characters/'+oldFn)}catch{}
+  await fsWrite(dn+'/characters/'+(data._filename||safeFn(data.name)+'.yaml'),toYAML(data));
+}
+async function deleteCharacterDB(dn,fn){
+  if(fsMode!=='fs'){LS.set('aws_cr_'+dn,LS.get('aws_cr_'+dn,[]).filter(x=>x._filename!==fn));return}
+  try{await fsDelete(dn+'/characters/'+fn)}catch{}
+}
+
+async function outlinesDB(dn){
+  if(fsMode!=='fs')return LS.get('aws_ol_'+dn,[]);
+  try{return parseYAML(await fsRead(dn+'/outline.yaml'))||[]}catch{return[]}
+}
+async function saveOutlinesDB(dn,ols){
+  if(fsMode!=='fs'){LS.set('aws_ol_'+dn,ols);return}
+  await fsWrite(dn+'/outline.yaml',toYAML(ols));
+}
+
+async function discussDB(dn){
+  if(fsMode!=='fs')return LS.get('aws_dc_'+dn,[]);
+  try{return parseYAML(await fsRead(dn+'/discuss_history.yaml'))||[]}catch{return[]}
+}
+async function saveDiscussDB(dn,msgs){
+  if(fsMode!=='fs'){LS.set('aws_dc_'+dn,msgs);return}
+  await fsWrite(dn+'/discuss_history.yaml',toYAML(msgs));
+}
+
+// ============== MINI YAML ==============
+function parseYAML(s){if(!s||!s.trim())return null;const out={};const lines=s.split('\n');let ck='';for(const line of lines){if(!line.trim()||line.trim().startsWith('#'))continue;const m=line.match(/^(\w[\w_]*):\s*(.*)$/);if(m){ck=m[1];out[ck]=m[2].trim()}else if(ck)out[ck]+='\n'+line.trimEnd()}return Object.keys(out).length>0?out:null}
+function toYAML(obj){
+  if(Array.isArray(obj))return obj.map(o=>'- chapter_file: '+(o.chapter_file||'')+'\n  summary: '+(o.summary||'').replace(/\n/g,'\n    ')).join('\n');
+  if(typeof obj==='object'&&obj!==null){const lines=[];for(const[k,v]of Object.entries(obj)){if(k.startsWith('_'))continue;if(typeof v==='string'&&v.includes('\n'))lines.push(k+': |\n  '+v.replace(/\n/g,'\n  '));else lines.push(k+': '+(v||''))}return lines.join('\n')}
+  return String(obj);
+}
+
+// ============== AI ==============
+async function* aiStream(messages,opts={}){
+  const s=settings();if(!s.api_key)throw new Error('请先配置 API Key');
+  const r=await fetch(s.api_base+'/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.api_key},body:JSON.stringify({model:s.model,messages,stream:true,temperature:opts.temp||0.8,max_tokens:opts.max||2000})});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||'HTTP '+r.status)}
+  const reader=r.body.getReader(),dec=new TextDecoder();let buf='';
+  while(1){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop()||'';for(const l of lines){if(l.startsWith('data: ')&&l.slice(6).trim()&&l.slice(6).trim()!=='[DONE]'){try{const c=JSON.parse(l.slice(6)).choices[0]?.delta?.content;if(c)yield c}catch{}}}}
+}
+
+async function buildSystemPrompt(dir,chFile){
+  const n=(await novelsDB()).find(x=>x.dirname===dir)||{};const parts=[];
+  parts.push('你是专业的小说写作助手。保持与已有内容一致的文风、人物和世界观。');
+  if(n.world_setting)parts.push('\n## 世界观\n'+n.world_setting);
+  const crs=await charactersDB(dir);if(crs.length){parts.push('\n## 人物');for(const c of crs){let s='- '+(c.name||'?');if(c.role)s+=' ('+c.role+')';if(c.personality)s+='\n  性格：'+c.personality.slice(0,80);if(c.background)s+='\n  背景：'+c.background.slice(0,100);parts.push(s)}}
+  if(chFile){const ols=await outlinesDB(dir);const o=ols.find(o=>o.chapter_file===chFile);if(o&&o.summary)parts.push('\n## 本章大纲\n'+o.summary)}
+  return parts.join('\n');
+}
+
+// ============== APP ENGINE ==============
+const app=document.getElementById('app'),bn=document.getElementById('bottom-nav');
+let screen='',novelDir='',chapterFile='',aiText='';
+
+function activeTab(t){document.querySelectorAll('.nav-tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===t))}
+
+async function show(s,dir,chFile){
+  if(screen==='editor'&&s!=='editor')saveEditorNow();
+  screen=s;novelDir=dir||'';chapterFile=chFile||'';
+  bn.style.display=(s==='welcome')?'none':'flex';
+  const tabs={home:'home',novel:'home',editor:'write',characters:'home',outline:'home',discuss:'discuss',settings:'settings'};
+  activeTab(tabs[s]||'home');
+  app.scrollTop=0;
+  if(s==='welcome')renderWelcome();
+  else if(s==='home')await renderHome();
+  else if(s==='novel')await renderNovel(dir);
+  else if(s==='editor')await renderEditor(dir,chFile);
+  else if(s==='characters')await renderCharacters(dir);
+  else if(s==='outline')await renderOutline(dir);
+  else if(s==='discuss')await renderDiscuss(dir);
+  else if(s==='settings')renderSettings();
+}
+
+async function switchTab(tab){
+  if(tab==='home')await show('home');
+  else if(tab==='write'){const ns=await novelsDB();for(const n of ns){const chs=await chaptersDB(n.dirname);if(chs.length>0){await show('editor',n.dirname,chs[chs.length-1].filename);return}}if(ns.length>0)await show('novel',ns[0].dirname);else await show('home')}
+  else if(tab==='discuss'){if(novelDir)await show('discuss',novelDir);else{const ns=await novelsDB();if(ns.length>0)await show('discuss',ns[0].dirname);else await show('home')}}
+  else if(tab==='settings')await show('settings');
+}
+
+// ============== WELCOME ==============
+function renderWelcome(){
+  app.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:100vh;padding:30px">
+    <div style="font-size:3rem;margin-bottom:16px">&#x1F4D6;</div><h1 style="font-size:1.6rem;margin-bottom:8px">AI 写作助手</h1>
+    <p style="color:var(--muted);font-size:.9rem;margin-bottom:20px;line-height:1.6">AI 辅助小说创作<br>数据直接存储在手机文件系统中</p>
+    <button class="btn btn-a" style="width:200px;margin-bottom:8px" onclick="setupStorage()">选择存储目录</button>
+    <button class="btn btn-b" style="width:200px;font-size:.8rem" onclick="useLocal()">使用浏览器存储</button>
+  </div>`;
+}
+async function setupStorage(){try{if(await fsPickDir()){await show('home');return}}catch(e){alert(e.message)}useLocal()}
+function useLocal(){fsMode='local';show('home')}
+
+// ============== HOME ==============
+async function renderHome(){
+  const ns=await novelsDB();let list='';
+  for(const n of ns){const chs=await chaptersDB(n.dirname);const wc=chs.reduce((s,c)=>s+(c.content||'').length,0);list+=`<div class="list-item" onclick="show('novel','${n.dirname}')"><span class="icon">&#x1F4D6;</span><div class="flex"><strong>${esc(n.title)}</strong><div class="meta">${esc(n.author||'')} &middot; ${chs.length}章 ${wc}字</div></div><span style="color:var(--muted)">&gt;</span></div>`}
+  if(!list)list=`<div class="pad meta" style="text-align:center">还没有小说</div>`;
+  app.innerHTML=`<div class="topbar"><h1>我的小说</h1></div><div style="padding-bottom:20px"><div class="pad" style="display:flex;gap:8px"><button class="btn btn-a flex" onclick="showCreateNovel()">+ 创建</button><button class="btn btn-b flex" onclick="importNovel()">导入</button></div>${list}</div>
+  <div id="dlg" class="overlay"><div class="popup"><h3>创建小说</h3><form onsubmit="createNovel(event)"><label>目录名<input name="dirname" required placeholder="my-novel"></label><label>标题<input name="title" required></label><label>作者<input name="author"></label><label>类型<input name="genre"></label><label>世界观<textarea name="world_setting" rows="2"></textarea></label><button class="btn btn-a" style="width:100%" type="submit">创建</button><button class="btn btn-b" style="width:100%;margin-top:6px" type="button" onclick="hideOl('dlg')">取消</button></form></div></div>`;
+}
+function showCreateNovel(){document.getElementById('dlg').classList.add('active')}
+function hideOl(id){document.getElementById(id).classList.remove('active')}
+async function createNovel(e){e.preventDefault();const f=new FormData(e.target);const d=f.get('dirname').trim();const ns=await novelsDB();if(ns.find(n=>n.dirname===d)){alert('目录已存在');return}await saveNovelDB({dirname:d,title:f.get('title'),author:f.get('author'),genre:f.get('genre'),world_setting:f.get('world_setting')});hideOl('dlg');await show('novel',d)}
+async function importNovel(){if(fsMode!=='fs'){alert('仅在文件系统模式下可用');return}try{const h=await window.showDirectoryPicker({mode:'readwrite'});try{await h.getFileHandle('project.yaml')}catch{alert('所选目录不包含 project.yaml');return}dirHandle=h;fsMode='fs';const db=await idbOpen('aiw','fh');await idbPut(db,'fh',{handle:h},'root');await show('home')}catch(e){if(e.name!=='AbortError')alert(e.message)}}
+
+// ============== NOVEL DASHBOARD ==============
+async function renderNovel(dir){
+  const n=(await novelsDB()).find(x=>x.dirname===dir);if(!n){await show('home');return}
+  const chs=await chaptersDB(dir),crs=await charactersDB(dir);const wc=chs.reduce((s,c)=>s+(c.content||'').length,0);
+  let chHTML='';for(const c of chs)chHTML+=`<div class="list-item" onclick="show('editor','${dir}','${c.filename}')"><span class="icon">&#x1F4C4;</span><div class="flex">${esc(c.title)}<div class="meta">${(c.content||'').length}字</div></div></div>`;
+  if(!chHTML)chHTML=`<div class="pad meta">暂无章节</div>`;
+
+  app.innerHTML=`<div class="topbar"><a class="tb-btn back" onclick="show('home')">&larr;</a><h1>${esc(n.title)}</h1><a class="tb-btn" onclick="showEditNovel('${dir}')">编辑</a></div>
+  <div class="pad" style="padding-bottom:20px">
+    <div class="meta">${esc(n.author||'')} &middot; ${esc(n.genre||'')} &middot; ${chs.length}章 &middot; ${wc}字</div>
+    ${n.world_setting?`<div class="card"><strong style="font-size:.8rem">世界观</strong><p class="meta" style="white-space:pre-wrap;margin-top:4px">${esc(n.world_setting)}</p></div>`:''}
+    <div class="row" style="margin-bottom:10px"><button class="btn btn-b flex" onclick="showNewCh('${dir}')">+ 章节</button><button class="btn btn-b flex" onclick="show('outline','${dir}')">大纲</button><button class="btn btn-b flex" onclick="show('discuss','${dir}')">讨论</button></div>
+    <div class="row" style="margin-bottom:10px"><button class="btn btn-b flex" onclick="show('characters','${dir}')">人物 (${crs.length})</button></div>
+    <h3 style="font-size:.8rem;margin:10px 0;color:var(--muted)">章节</h3>${chHTML}
+    <button class="btn btn-d" style="width:100%;margin-top:16px" onclick="deleteNovelBtn('${dir}')">删除此小说</button>
+  </div>
+  <div id="ch-dlg" class="overlay"><div class="popup"><h3>新建章节</h3><form onsubmit="createCh(event,'${dir}')"><label>章节标题<input name="title" required></label><button class="btn btn-a" style="width:100%" type="submit">创建</button><button class="btn btn-b" style="width:100%;margin-top:6px" type="button" onclick="hideOl('ch-dlg')">取消</button></form></div></div>
+  <div id="ed-dlg" class="overlay"><div class="popup"><h3>编辑信息</h3><form onsubmit="updateNovel(event,'${dir}')"><label>标题<input name="title" value="${esc(n.title)}" required></label><label>作者<input name="author" value="${esc(n.author||'')}"></label><label>类型<input name="genre" value="${esc(n.genre||'')}"></label><label>世界观<textarea name="world_setting" rows="4">${esc(n.world_setting||'')}</textarea></label><button class="btn btn-a" style="width:100%" type="submit">保存</button><button class="btn btn-b" style="width:100%;margin-top:6px" type="button" onclick="hideOl('ed-dlg')">取消</button></form></div></div>`;
+}
+function showNewCh(dir){document.getElementById('ch-dlg').classList.add('active')}
+function showEditNovel(dir){document.getElementById('ed-dlg').classList.add('active')}
+async function createCh(e,dir){e.preventDefault();const t=new FormData(e.target).get('title').trim();await saveChapterDB(dir,{filename:safeFn(t)+'.md',title:t,content:'',updatedAt:Date.now()});hideOl('ch-dlg');await show('novel',dir)}
+async function updateNovel(e,dir){e.preventDefault();const f=new FormData(e.target);const n=(await novelsDB()).find(x=>x.dirname===dir);if(n){n.title=f.get('title');n.author=f.get('author');n.genre=f.get('genre');n.world_setting=f.get('world_setting');await saveNovelDB(n)}hideOl('ed-dlg');await show('novel',dir)}
+async function deleteNovelBtn(dir){if(!confirm('确定删除？'))return;await deleteNovelDB(dir);['ch','cr','ol','dc'].forEach(k=>localStorage.removeItem('aws_'+k+'_'+dir));await show('home')}
+
+// ============== EDITOR ==============
+async function renderEditor(dir,chFile){
+  const n=(await novelsDB()).find(x=>x.dirname===dir);const chs=await chaptersDB(dir);let ch=chs.find(c=>c.filename===chFile);if(!ch&&chs.length>0){ch=chs[chs.length-1];chFile=ch.filename}if(!ch){await show('novel',dir);return}
+  ch.content=await loadChapterDB(dir,chFile);
+  const hasWorld=!!(n&&n.world_setting);const crs=await charactersDB(dir);const ols=await outlinesDB(dir);const ol=ols.find(o=>o.chapter_file===ch.filename);
+
+  app.innerHTML=`<div class="topbar"><a class="tb-btn back" onclick="show('novel','${dir}')">&larr;</a><h1 style="font-size:.9rem">${esc(ch.title)}</h1><a class="tb-btn" onclick="switchCh('${dir}')">切换</a></div>
+  <div class="editor-area">
+    <div class="status-bar"><span class="${hasWorld?'status-ok':'status-warn'}">${hasWorld?'&#x2714;':'!'}世界观</span><span class="${crs.length?'status-ok':'status-warn'}">${crs.length||'0'}人物</span><span class="${ol?'status-ok':'status-warn'}">${ol?'有':'无'}大纲</span><span id="wc" style="margin-left:auto;color:var(--accent)">${(ch.content||'').length}字</span><span id="save-st" class="status-ok" style="margin-left:4px">已保存</span><a class="btn btn-s" style="font-size:.65rem;margin-left:4px" onclick="saveEditorNow();markSaved()">保存</a></div>
+    ${ol?`<div class="pad" style="padding-bottom:0"><div class="card" style="margin:0;padding:8px 10px;font-size:.75rem;color:var(--muted)"><strong>大纲 </strong>${esc(ol.summary.slice(0,60))}${ol.summary.length>60?'...':''}</div></div>`:''}
+    <textarea id="editor-text" placeholder="开始写..." oninput="updateWordCount()">${esc(ch.content||'')}</textarea>
+    <div class="editor-bottom">
+      <div class="row" style="margin-bottom:4px;gap:4px"><button class="btn btn-s btn-g flex" onclick="startWriter('${dir}','${chFile}')">从头写</button><button class="btn btn-s flex" onclick="aiAct('continue','${dir}','${chFile}')" style="background:#2a2a5a">续写</button><button class="btn btn-s flex" onclick="aiAct('polish','${dir}','${chFile}')" style="background:#2a2a5a">润色</button><button class="btn btn-s flex" onclick="aiAct('brainstorm','${dir}','${chFile}')" style="background:#2a2a5a">主意</button></div>
+      <div id="ai-out" class="ai-resp" style="display:none"></div>
+      <div class="row" id="ai-tools" style="display:none;margin-top:4px"><button class="btn btn-a flex" style="font-size:.75rem;padding:8px" onclick="insertAI()">插入</button><button class="btn btn-d flex" style="font-size:.75rem;padding:8px" onclick="clearAI()">清除</button></div>
+    </div>
+  </div>
+  <div id="sw-dlg" class="overlay"><div class="popup"><h3>切换章节</h3>${chs.map(c=>`<div class="list-item" onclick="switchToCh('${dir}','${c.filename}')">${esc(c.title)}<div class="meta">${(c.content||'').length}字</div></div>`).join('')}<button class="btn btn-b" style="width:100%;margin-top:8px" onclick="hideOl('sw-dlg')">取消</button></div></div>
+  <div id="st-dlg" class="overlay"><div class="popup"><h3>这章要写什么？</h3><label>简单描述（可选）<textarea id="start-notes" rows="3" placeholder="例如：主角在雨夜来到古庙..."></textarea></label><button class="btn btn-a" style="width:100%" onclick="doStartWriter('${dir}','${chFile}')">开始写</button><button class="btn btn-b" style="width:100%;margin-top:6px" onclick="hideOl('st-dlg')">取消</button></div></div>`;
+}
+let wordCount=0,saved=true;
+function switchCh(dir){document.getElementById('sw-dlg').classList.add('active')}
+function switchToCh(dir,file){saveEditorNow();hideOl('sw-dlg');show('editor',dir,file)}
+function startWriter(dir,file){document.getElementById('st-dlg').classList.add('active');document.getElementById('start-notes')?.focus()}
+async function doStartWriter(dir,file){hideOl('st-dlg');const notes=document.getElementById('start-notes')?.value||'';await aiAct('start_writing',dir,file,{user_notes:notes})}
+function updateWordCount(){const ta=document.getElementById('editor-text');if(!ta)return;wordCount=ta.value.length;const el=document.getElementById('wc');if(el)el.textContent=wordCount+'字';saved=false;const st=document.getElementById('save-st');if(st)st.textContent='未保存';if(st)st.className='status-warn'}
+function markSaved(){saved=true;const st=document.getElementById('save-st');if(st)st.textContent='已保存';if(st)st.className='status-ok'}
+
+async function aiAct(action,dir,file,extra={}){
+  const ta=document.getElementById('editor-text');if(!ta)return;const out=document.getElementById('ai-out'),tools=document.getElementById('ai-tools');
+  out.style.display='block';out.textContent='生成中...';tools.style.display='none';aiText='';
+  const content=ta.value,cursor=ta.selectionStart,before=content.substring(0,cursor);const sp=await buildSystemPrompt(dir,file);
+  let msg='',temp=0.8,maxT=2000;
+  if(action==='continue')msg=`以下是我正在写的章节：\n\n${before||content}\n\n请继续写下去。`;
+  else if(action==='start_writing'){const notes=extra.user_notes||'';msg=`我要开始写新章节《${file.replace('.md','')}》。`+(notes?'\n用户想法：'+notes:'')+'\n\n请先检查设定是否完备（不足请指出），然后为本章写出精彩开头。';temp=0.85;maxT=2500}
+  else if(action==='polish'){const t=before||content;if(!t.trim()){out.textContent='请先写内容';return}msg=`润色以下文字，保持原意更流畅：\n\n${t}`;temp=0.6}
+  else if(action==='brainstorm'){msg=`根据当前故事，给出3-5个情节发展方向：\n\n${(content||before).slice(0,2000)}`;temp=0.9;maxT=1000}
+  try{let full='';out.textContent='';for await(const chunk of aiStream([{role:'system',content:sp},{role:'user',content:msg}],{temp,maxT})){full+=chunk;out.textContent+=chunk}aiText=full;if(full.trim())tools.style.display='flex';else out.textContent='(未返回)'}catch(e){out.textContent='错误: '+e.message}
+}
+function insertAI(){const ta=document.getElementById('editor-text');if(!ta||!aiText)return;const pos=ta.selectionStart;ta.value=ta.value.slice(0,pos)+aiText+ta.value.slice(pos);clearAI()}
+function clearAI(){aiText='';document.getElementById('ai-out').style.display='none';document.getElementById('ai-tools').style.display='none'}
+async function saveEditorNow(){if(screen!=='editor'||!novelDir||!chapterFile)return;const ta=document.getElementById('editor-text');if(!ta)return;await saveChapterDB(novelDir,{filename:chapterFile,title:chapterFile.replace('.md',''),content:ta.value,updatedAt:Date.now()});markSaved()}
+setInterval(saveEditorNow,8000);
+
+// ============== CHARACTERS ==============
+async function renderCharacters(dir){
+  const crs=await charactersDB(dir);
+  app.innerHTML=`<div class="topbar"><a class="tb-btn back" onclick="show('novel','${dir}')">&larr;</a><h1>人物管理</h1><a class="tb-btn" onclick="editChar('${dir}','new')">+</a></div>
+  <div class="pad" style="padding-bottom:20px">${crs.map(c=>`<div class="list-item" onclick="editChar('${dir}','${c._filename}')"><span class="icon">&#x1F464;</span><div class="flex">${esc(c.name)||'(未命名)'}<span class="tag">${esc(c.role||'')}</span></div><button class="btn btn-s btn-d" style="padding:4px 8px;font-size:.65rem" onclick="event.stopPropagation();delChar('${dir}','${c._filename}')">&times;</button></div>`).join('')||`<div class="meta" style="text-align:center">暂无人物</div>`}</div>
+  <div id="cr-dlg" class="overlay"><div class="popup"><h3 id="cr-title">人物</h3><form onsubmit="saveChar(event,'${dir}')"><input type="hidden" name="oldfile" id="cr-old"><label>姓名<input name="name" id="cr-name"></label><label>角色<select name="role" id="cr-role">${['主角','反派','配角','导师','恋人','朋友','家人','路人','其他'].map(r=>`<option>${r}</option>`).join('')}</select></label><label>性格<textarea name="personality" id="cr-pers" rows="2"></textarea></label><label>外貌<textarea name="appearance" id="cr-app" rows="2"></textarea></label><label>背景<textarea name="background" id="cr-bg" rows="3"></textarea></label><label>备注<textarea name="notes" id="cr-notes" rows="2"></textarea></label><button class="btn btn-a" style="width:100%" type="submit">保存</button><button class="btn btn-b" style="width:100%;margin-top:6px" type="button" onclick="hideOl('cr-dlg')">取消</button></form></div></div>`;
+}
+async function editChar(dir,fn){const crs=await charactersDB(dir);const c=fn!=='new'?crs.find(x=>x._filename===fn):null;document.getElementById('cr-old').value=fn!=='new'?fn:'';document.getElementById('cr-title').textContent=c?'编辑人物':'新建人物';['name','pers','app','bg','notes'].forEach(id=>document.getElementById('cr-'+id).value=c?c[id]||'':'');document.getElementById('cr-role').value=c?c.role||'':'';document.getElementById('cr-dlg').classList.add('active')}
+async function saveChar(e,dir){e.preventDefault();const f=new FormData(e.target);const data={name:f.get('name'),role:f.get('role'),personality:f.get('personality'),appearance:f.get('appearance'),background:f.get('background'),notes:f.get('notes'),_filename:safeFn(f.get('name'))+'.yaml'};await saveCharacterDB(dir,data,f.get('oldfile')||null);hideOl('cr-dlg');await renderCharacters(dir)}
+async function delChar(dir,fn){if(!confirm('删除？'))return;await deleteCharacterDB(dir,fn);await renderCharacters(dir)}
+
+// ============== OUTLINE ==============
+async function renderOutline(dir){
+  const chs=await chaptersDB(dir),ols=await outlinesDB(dir);
+  app.innerHTML=`<div class="topbar"><a class="tb-btn back" onclick="show('novel','${dir}')">&larr;</a><h1>大纲管理</h1></div>
+  <div class="pad" style="padding-bottom:20px">${chs.map((c,i)=>{const o=ols.find(o=>o.chapter_file===c.filename);return`<div class="card"><strong>${esc(c.title)}</strong><div class="row" style="margin:4px 0"><button class="btn btn-s flex" onclick="aiOl('${dir}','${c.filename}',${i})">AI 建议</button></div><textarea id="ol-${i}" rows="2" placeholder="这章写什么...">${esc(o?o.summary:'')}</textarea><div id="ol-h-${i}" class="meta" style="margin-top:4px;white-space:pre-wrap"></div></div>`}).join('')}${chs.length?`<button class="btn btn-a" style="width:100%" onclick="saveOlAll('${dir}')">保存全部大纲</button>`:''}</div>`;
+}
+async function saveOlAll(dir){const chs=await chaptersDB(dir);const ols=[];for(let i=0;i<chs.length;i++){const el=document.getElementById('ol-'+i);if(el&&el.value.trim())ols.push({chapter_file:chs[i].filename,summary:el.value.trim()})}await saveOutlinesDB(dir,ols);alert('已保存')}
+async function aiOl(dir,file,idx){const hint=document.getElementById('ol-h-'+idx);hint.textContent='生成中...';const sp=await buildSystemPrompt(dir,file);const ols=await outlinesDB(dir);const others=ols.filter(o=>o.chapter_file!==file).map(o=>'- '+o.summary).join('\n');try{let full='';hint.textContent='';for await(const chunk of aiStream([{role:'system',content:sp},{role:'user',content:`请为这一章写简短大纲（100-200字）。直接写内容。${others?'\n其他章大纲参考：\n'+others:''}`}],{temp:0.7,max:400})){full+=chunk;hint.textContent+=chunk}if(full.trim())document.getElementById('ol-'+idx).value=full.trim()}catch(e){hint.textContent='错误: '+e.message}}
+
+// ============== DISCUSS ==============
+async function renderDiscuss(dir){
+  const hist=await discussDB(dir);let msgs='';for(const m of hist)msgs+=`<div class="chat-msg ${m.role}"><div class="chat-role">${m.role==='user'?'你':'AI'}</div><div class="chat-text">${esc(m.content)}</div></div>`;
+  if(!msgs)msgs=`<div class="meta pad" style="text-align:center">开始讨论你的小说吧</div>`;
+  app.innerHTML=`<div class="topbar"><a class="tb-btn back" onclick="show('novel','${dir}')">&larr;</a><h1>AI 讨论</h1><a class="tb-btn" onclick="discWorld('${dir}')">更新设定</a></div>
+  <div class="chat-container"><div class="chat-msgs" id="chat-msgs">${msgs}</div><div id="typing" class="chat-msg assistant" style="display:none;padding:0 14px"><div class="chat-role">AI</div><div class="chat-text" id="t-text"></div></div>
+  <div class="chat-bar"><textarea id="disc-in" rows="2" placeholder="输入想法..."></textarea><button class="btn btn-a" onclick="sendDisc('${dir}')">发送</button></div></div>`;
+  document.getElementById('disc-in').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendDisc(dir)}});
+}
+async function sendDisc(dir){
+  const inp=document.getElementById('disc-in');const msg=inp.value.trim();if(!msg)return;inp.value='';inp.disabled=true;
+  const hist=await discussDB(dir);hist.push({role:'user',content:msg,time:Date.now()});await saveDiscussDB(dir,hist);appendDisc('user',msg);
+  document.getElementById('typing').style.display='block';const sp=(await buildSystemPrompt(dir))+'\n\n你是小说创作讨论伙伴。请积极回应，帮助理清思路。';
+  const msgs=[{role:'system',content:sp}];const recent=(await discussDB(dir)).slice(-20);for(const m of recent)msgs.push({role:m.role,content:m.content});
+  try{let full='';const tt=document.getElementById('t-text');tt.textContent='';for await(const chunk of aiStream(msgs,{temp:0.8,max:2000})){full+=chunk;tt.textContent+=chunk;scrollDisc()}const h2=await discussDB(dir);h2.push({role:'assistant',content:full,time:Date.now()});await saveDiscussDB(dir,h2)}catch(e){document.getElementById('t-text').textContent='错误: '+e.message}
+  document.getElementById('typing').style.display='none';inp.disabled=false;inp.focus();
+}
+function appendDisc(role,content){const c=document.getElementById('chat-msgs');const d=document.createElement('div');d.className='chat-msg '+role;d.innerHTML=`<div class="chat-role">${role==='user'?'你':'AI'}</div><div class="chat-text">${esc(content)}</div>`;c.appendChild(d);scrollDisc()}
+function scrollDisc(){const c=document.getElementById('chat-msgs');if(c)c.scrollTop=c.scrollHeight}
+async function discWorld(dir){const hist=await discussDB(dir);if(!hist.length){alert('请先讨论');return}const sp=await buildSystemPrompt(dir);const text=hist.map(m=>`${m.role==='user'?'用户':'AI'}: ${m.content.slice(0,300)}`).join('\n');try{let full='';for await(const chunk of aiStream([{role:'system',content:sp},{role:'user',content:`根据以下讨论，提炼完整世界观设定：\n\n${text}`}],{temp:0.5,max:1500}))full+=chunk;if(full.trim()){const n=(await novelsDB()).find(x=>x.dirname===dir);if(n){n.world_setting=full.trim();await saveNovelDB(n);alert('世界观已更新')}}}catch(e){alert('生成失败: '+e.message)}}
+
+// ============== SETTINGS ==============
+function renderSettings(){
+  const s=settings();
+  app.innerHTML=`<div class="topbar"><h1>设置</h1></div><div class="pad" style="padding-bottom:20px">
+    <label>API Key<input id="s-key" type="password" value="${esc(s.api_key)}" placeholder="sk-..."></label>
+    <label>API Base URL<input id="s-base" value="${esc(s.api_base)}"></label>
+    <label>模型<select id="s-model">${['deepseek-v4-flash','deepseek-v4-pro'].map(m=>`<option ${s.model===m?'selected':''}>${m}</option>`).join('')}</select></label>
+    <button class="btn btn-a" style="width:100%;margin-top:8px" onclick="saveS()">保存设置</button>
+    <div class="card" style="margin-top:12px;font-size:.75rem;color:var(--muted)"><strong>存储模式：</strong>${fsMode==='fs'?'文件系统 (已选目录)':'浏览器存储'}<br>
+    <button class="btn btn-s" style="margin-top:6px" onclick="setupStorage()">切换为文件系统存储</button></div>
+    <h3 style="font-size:.85rem;margin:16px 0 6px">备份</h3>
+    <button class="btn btn-b" style="width:100%" onclick="exportAll()">导出备份 (JSON)</button>
+    <button class="btn btn-b" style="width:100%;margin-top:6px" onclick="document.getElementById('imp-f').click()">导入备份</button>
+    <input type="file" id="imp-f" style="display:none" accept=".json" onchange="importAll(event)">
+    ${!s.api_key?`<div class="card" style="margin-top:12px;background:#321;border-color:#642;color:#eb3">未配置 API Key。获取：platform.deepseek.com/api_keys</div>`:''}</div>`;
+}
+function saveS(){saveSettings({api_key:document.getElementById('s-key').value,api_base:document.getElementById('s-base').value,model:document.getElementById('s-model').value});alert('已保存')}
+async function exportAll(){if(fsMode==='fs'){alert('文件系统模式下数据已保存在选定目录中。')}else{const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('aws_'))data[k]=JSON.parse(localStorage.getItem(k))}const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ai-writing-backup.json';a.click()}}
+function importAll(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=function(){try{const data=JSON.parse(reader.result);for(const[k,v]of Object.entries(data))localStorage.setItem(k,typeof v==='string'?v:JSON.stringify(v));alert('导入成功，刷新生效');location.reload()}catch{alert('格式错误')}};reader.readAsText(file)}
+
+// ============== UTILS ==============
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function safeFn(s){return s.replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,'-').slice(0,60)}
+
+// ============== INIT ==============
+async function init(){
+  // Try file system first, fall back to localStorage silently
+  const restored=await fsInit();
+  await show('home');
+  // Show a toast if file system was restored
+  if(restored)setTimeout(()=>alert('已恢复文件系统存储'),500);
+}
+init();
+// PWA service worker
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
