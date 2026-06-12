@@ -1,7 +1,7 @@
 {
-  "name": "AI 写作助手",
-  "short_name": "AI写作",
-  "description": "AI 辅助小说创作工具",
+  "name": "AI Writing Assistant",
+  "short_name": "AI Writing",
+  "description": "AI-assisted novel writing tool",
   "start_url": "index.html",
   "display": "standalone",
   "orientation": "portrait",
@@ -9,9 +9,16 @@
   "background_color": "#0d0d1a",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23ff5e6b' width='192' height='192' rx='32'/><text x='96' y='130' text-anchor='middle' font-size='100'>&#x270D;</text></svg>",
+      "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
